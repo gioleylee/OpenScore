@@ -51,6 +51,7 @@ def run(directory):
             settings.start,
             settings.end,
         )
+        mix = y
         if settings.separate != "none":
             import soundfile as sf
 
@@ -62,7 +63,9 @@ def run(directory):
             sf.write(detection_audio, y, sr)
         else:
             detection_audio = directory / "audio.wav"
-        notes, tempo, warnings = transcribe(detection_audio, y, sr, settings, stage)
+        notes, tempo, warnings = transcribe(
+            detection_audio, y, sr, settings, stage, rhythm=mix
+        )
         if settings.mode in ("guitar", "bass", "ukulele"):
             stage("Optimizing playable tablature")
             warnings.extend(optimize(notes, settings))

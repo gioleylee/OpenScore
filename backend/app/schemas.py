@@ -56,7 +56,7 @@ class Note(BaseModel):
     id: str = Field(max_length=80)
     pitch: int = Field(ge=0, le=127)
     onset: float = Field(
-        ge=0, le=1024, description="Quarter-note beats from segment start"
+        ge=0, le=4096, description="Quarter-note beats from segment start"
     )
     duration: float = Field(ge=0.0625, le=128)
     velocity: int = Field(default=85, ge=1, le=127)

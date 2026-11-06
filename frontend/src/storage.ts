@@ -88,7 +88,7 @@ export function validateSaved(value: unknown): SavedTranscription {
       n.pitch > 127 ||
       !Number.isFinite(n.onset) ||
       n.onset < 0 ||
-      n.onset > 1024 ||
+      n.onset > 4096 ||
       !Number.isFinite(n.duration) ||
       n.duration < 0.0625 ||
       n.duration > 128 ||

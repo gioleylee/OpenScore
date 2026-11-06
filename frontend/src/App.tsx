@@ -254,6 +254,8 @@ export default function App() {
   }, []);
   function openSaved(item: SavedTranscription) {
     setScore(item.score);
+    // Players of fretted instruments read tab first.
+    setView(FRETTED.includes(item.score.settings.mode) ? "tab" : "staff");
     setResult({ score: item.score, audio: item.audio });
     setJob(null);
     setSavedId(item.id === "draft" ? null : item.id);
@@ -306,10 +308,10 @@ export default function App() {
     config({
       mode: id,
       instrument: preset.instrument,
-      // Chords need the polyphonic model; single lines track best with pYIN.
+      // Basic Pitch catches fast and repeated notes far better on real recordings
+      // (and is required for chords); pYIN suits a clean solo melody.
       engine:
-        id === "piano" ||
-        ((id === "guitar" || id === "ukulele") && health?.basic_pitch)
+        id === "piano" || (id !== "melody" && health?.basic_pitch)
           ? "basic_pitch"
           : "pyin",
       tuning: preset.tuning,
@@ -398,6 +400,8 @@ export default function App() {
           if (stopped) return;
           setResult(r);
           setScore(r.score);
+          // Players of fretted instruments read tab first.
+          setView(FRETTED.includes(r.score.settings.mode) ? "tab" : "staff");
           setPast([]);
           setFuture([]);
           setState("done");
@@ -952,8 +956,10 @@ export default function App() {
                 </label>
                 <p className="field-help">
                   {settings.engine === "pyin"
-                    ? "Tracks one pitch at a time. Chords and full-band lead isolation are not supported."
-                    : "Detects simultaneous pitches and chords."}
+                    ? "Tracks one pitch at a time. Best for a clean solo melody; it can miss fast repeated notes."
+                    : settings.mode === "bass" || settings.mode === "melody"
+                      ? "Neural note detection, reduced to a single clean line."
+                      : "Detects simultaneous pitches and chords."}
                 </p>
                 <label>
                   Isolate instrument from a full mix
