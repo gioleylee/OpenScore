@@ -1,0 +1,4 @@
+# YouTube links and song-name search. yt-dlp must be kept current because
+# YouTube changes frequently: `pip install -U "yt-dlp[default]"`.
+# A JavaScript runtime (Deno, Node.js or Bun) must be on PATH for YouTube.
+yt-dlp[default]==2026.10.26

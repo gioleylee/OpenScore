@@ -4,9 +4,11 @@ from .schemas import Note, Settings
 
 
 def candidates(pitch, settings):
-    return [(len(settings.tuning) - i, pitch - tuning - settings.capo)
-            for i, tuning in enumerate(settings.tuning)
-            if settings.min_fret <= pitch - tuning - settings.capo <= settings.max_fret]
+    return [
+        (len(settings.tuning) - i, pitch - tuning - settings.capo)
+        for i, tuning in enumerate(settings.tuning)
+        if settings.min_fret <= pitch - tuning - settings.capo <= settings.max_fret
+    ]
 
 
 def optimize(notes: list[Note], settings: Settings, beam_width=48):
@@ -39,7 +41,9 @@ def optimize(notes: list[Note], settings: Settings, beam_width=48):
                 assignments.append(combo)
         next_beam = []
         for cost, position, occupied, path in beam:
-            live = {s: state for s, state in occupied.items() if state[0] > onset + 1e-6}
+            live = {
+                s: state for s, state in occupied.items() if state[0] > onset + 1e-6
+            }
             for combo in assignments:
                 if any(s in live for s, _ in combo):
                     continue
@@ -48,8 +52,15 @@ def optimize(notes: list[Note], settings: Settings, beam_width=48):
                     continue
                 new_position = sum(frets) / len(frets) if frets else position
                 stretch = (max(frets) - min(frets)) if frets else 0
-                local = abs(new_position - position) * 1.5 + stretch**2 * 0.5 + sum(f for _, f in combo) * 0.03
-                new_live = {**live, **{s: (onset + n.duration, f) for n, (s, f) in zip(group, combo)}}
+                local = (
+                    abs(new_position - position) * 1.5
+                    + stretch**2 * 0.5
+                    + sum(f for _, f in combo) * 0.03
+                )
+                new_live = {
+                    **live,
+                    **{s: (onset + n.duration, f) for n, (s, f) in zip(group, combo)},
+                }
                 next_beam.append((cost + local, new_position, new_live, path + [combo]))
             # Keep an honest unassigned option rather than inventing or dropping pitches.
             next_beam.append((cost + 1000, position, live, path + [None]))
@@ -62,8 +73,12 @@ def optimize(notes: list[Note], settings: Settings, beam_width=48):
                 n.string, n.fret = string, fret
     warnings = []
     if unmapped:
-        warnings.append(f"{unmapped} notes have no playable fingering under the selected constraints. They remain in staff/MIDI; tab shows '?' placeholders. Change tuning, region or notes.")
-    warnings.append("Tab fingerings use a conservative four-fret-span heuristic. Review chords and sustained notes for your technique.")
+        warnings.append(
+            f"{unmapped} notes have no playable fingering under the selected constraints. They remain in staff/MIDI; tab shows '?' placeholders. Change tuning, region or notes."
+        )
+    warnings.append(
+        "Tab fingerings use a conservative four-fret-span heuristic. Review chords and sustained notes for your technique."
+    )
     return warnings
 
 
@@ -72,10 +87,12 @@ def ascii_tab(score):
     groups = {}
     for n in sorted(score.notes, key=lambda x: (x.onset, x.pitch)):
         groups.setdefault(n.onset, []).append(n)
-    lines = [f"{score.title}\n{score.tempo:g} BPM; onsets in quarter-note beats; frets relative to capo {s.capo}\n"]
+    lines = [
+        f"{score.title}\n{score.tempo:g} BPM; onsets in quarter-note beats; frets relative to capo {s.capo}\n"
+    ]
     items = list(groups.items())
     for start in range(0, len(items), 12):
-        block = items[start:start + 12]
+        block = items[start : start + 12]
         lines.append("beat " + "".join(f"{beat:<7g}" for beat, _ in block))
         for string in range(1, len(s.tuning) + 1):
             cells = []
@@ -83,7 +100,9 @@ def ascii_tab(score):
                 note = next((n for n in group if n.string == string), None)
                 cells.append((str(note.fret) if note else "-").center(7, "-"))
             lines.append(f"{string:>3} |" + "".join(cells) + "|")
-        missing = [(beat, n.pitch) for beat, group in block for n in group if n.string is None]
+        missing = [
+            (beat, n.pitch) for beat, group in block for n in group if n.string is None
+        ]
         if missing:
             lines.append("? unmapped (beat, MIDI pitch): " + str(missing))
         lines.append("")

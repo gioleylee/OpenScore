@@ -1,0 +1,6 @@
+# Instrument isolation from full mixes (Demucs htdemucs_6s, MIT; weights ~80 MB
+# download on first use). CPU wheels: add
+#   --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple
+torch==2.5.1
+torchaudio==2.5.1
+demucs==4.0.1

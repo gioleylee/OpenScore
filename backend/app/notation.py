@@ -12,17 +12,32 @@ def midi_bytes(score: Score):
     track = mido.MidiTrack()
     midi.tracks.append(track)
     track.append(mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(score.tempo)))
-    track.append(mido.MetaMessage("time_signature", numerator=score.settings.numerator,
-                                  denominator=score.settings.denominator))
-    program = {"piano": 0, "guitar": 24, "bass": 33}.get(score.settings.mode, 0)
+    track.append(
+        mido.MetaMessage(
+            "time_signature",
+            numerator=score.settings.numerator,
+            denominator=score.settings.denominator,
+        )
+    )
+    program = {"piano": 0, "guitar": 24, "bass": 33, "ukulele": 24}.get(
+        score.settings.mode, 0
+    )
     track.append(mido.Message("program_change", program=program))
     events = []
     for n in score.notes:
-        events.extend([(round(n.onset * 480), 1, n), (round((n.onset + n.duration) * 480), 0, n)])
+        events.extend(
+            [(round(n.onset * 480), 1, n), (round((n.onset + n.duration) * 480), 0, n)]
+        )
     previous = 0
     for tick, on, n in sorted(events, key=lambda x: (x[0], x[1], x[2].pitch)):
-        track.append(mido.Message("note_on" if on else "note_off", note=n.pitch,
-                                  velocity=n.velocity if on else 0, time=tick - previous))
+        track.append(
+            mido.Message(
+                "note_on" if on else "note_off",
+                note=n.pitch,
+                velocity=n.velocity if on else 0,
+                time=tick - previous,
+            )
+        )
         previous = tick
     out = io.BytesIO()
     midi.save(file=out)
@@ -37,30 +52,62 @@ def musicxml(score: Score, view="staff"):
     """
     root = stream.Score()
     from music21 import metadata
+
     root.metadata = metadata.Metadata(title=score.title)
-    tab = view == "tab" and score.settings.mode in ("guitar", "bass")
+    tab = view == "tab" and score.settings.mode in ("guitar", "bass", "ukulele")
     partitions = [score.notes]
     if score.settings.mode == "piano":
-        partitions = [[n for n in score.notes if n.pitch >= 60], [n for n in score.notes if n.pitch < 60]]
+        partitions = [
+            [n for n in score.notes if n.pitch >= 60],
+            [n for n in score.notes if n.pitch < 60],
+        ]
     for index, notes in enumerate(partitions):
         part = stream.Part(id=f"P{index + 1}")
-        part.partName = score.settings.instrument + (" · upper" if index == 0 and len(partitions) == 2 else " · lower" if len(partitions) == 2 else "")
+        part.partName = score.settings.instrument + (
+            " · upper"
+            if index == 0 and len(partitions) == 2
+            else " · lower"
+            if len(partitions) == 2
+            else ""
+        )
         part.insert(0, instrument.Instrument())
-        part.insert(0, meter.TimeSignature(f"{score.settings.numerator}/{score.settings.denominator}"))
+        part.insert(
+            0,
+            meter.TimeSignature(
+                f"{score.settings.numerator}/{score.settings.denominator}"
+            ),
+        )
         part.insert(0, key.KeySignature(score.key))
         part.insert(0, tempo.MetronomeMark(number=score.tempo))
-        part.insert(0, clef.BassClef() if index == 1 or score.settings.mode == "bass" else clef.TrebleClef())
+        part.insert(
+            0,
+            clef.BassClef()
+            if index == 1 or score.settings.mode == "bass"
+            else clef.TrebleClef(),
+        )
         voices, ends = [], []
         for n in sorted(notes, key=lambda x: (x.onset, x.pitch)):
-            vi = next((i for i, end in enumerate(ends) if end <= n.onset + 1e-6), len(ends))
+            vi = next(
+                (i for i, end in enumerate(ends) if end <= n.onset + 1e-6), len(ends)
+            )
             if vi == len(ends):
+                if vi >= 16:
+                    raise ValueError(
+                        "Too many overlapping notes for engraving; shorten overlapping durations"
+                    )
                 voices.append(stream.Voice(id=str(vi + 1)))
                 ends.append(0)
             value = note.Note(n.pitch, quarterLength=n.duration)
             value.volume.velocity = n.velocity
             if tab and n.string is not None:
                 from music21 import articulations
-                value.articulations.extend([articulations.StringIndication(n.string), articulations.FretIndication(n.fret)])
+
+                value.articulations.extend(
+                    [
+                        articulations.StringIndication(n.string),
+                        articulations.FretIndication(n.fret),
+                    ]
+                )
             elif tab:
                 value.addLyric("?")
             voices[vi].insert(n.onset, value)
@@ -73,6 +120,7 @@ def musicxml(score: Score, view="staff"):
         root.insert(0, part)
     root.makeNotation(inPlace=True)
     from music21.musicxml.m21ToXml import GeneralObjectExporter
+
     data = GeneralObjectExporter(root).parse()
     if not tab:
         return data
@@ -92,6 +140,8 @@ def musicxml(score: Score, view="staff"):
             tuning = ET.SubElement(details, "staff-tuning", line=str(i + 1))
             ET.SubElement(tuning, "tuning-step").text = pitch.step
             if pitch.accidental:
-                ET.SubElement(tuning, "tuning-alter").text = str(int(pitch.accidental.alter))
+                ET.SubElement(tuning, "tuning-alter").text = str(
+                    int(pitch.accidental.alter)
+                )
             ET.SubElement(tuning, "tuning-octave").text = str(pitch.octave)
     return ET.tostring(xml, encoding="utf-8", xml_declaration=True)

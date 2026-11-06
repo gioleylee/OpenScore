@@ -10,3 +10,12 @@ data/
 *.log
 test-results/
 playwright-report/
+*.tsbuildinfo
+*.jks
+*.keystore
+keystore.properties
+*.apk
+*.aab
+.env.*
+!.env.example
+artifacts/

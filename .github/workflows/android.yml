@@ -1,0 +1,105 @@
+name: Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['android-v*']
+  pull_request:
+    paths: ['frontend/**', '.github/workflows/android.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - run: npm ci --ignore-scripts
+        working-directory: frontend
+      - run: npm test && npm run android:debug
+        working-directory: frontend
+        env:
+          VITE_API_URL: ${{ vars.PUBLIC_API_URL }}
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openscore-ai-debug-apk
+          path: artifacts/openscore-ai-debug.apk
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/android-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - run: npm ci --ignore-scripts
+        working-directory: frontend
+      - name: Decode signing keystore
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import base64, os, pathlib
+          required = ['KEYSTORE','ANDROID_KEYSTORE_PASSWORD','ANDROID_KEY_ALIAS','ANDROID_KEY_PASSWORD']
+          if any(not os.environ.get(key) for key in required):
+              raise SystemExit('Configure the four Android signing secrets described in docs/ANDROID.md')
+          key = pathlib.Path(os.environ['RUNNER_TEMP']) / 'openscore-release.jks'
+          key.write_bytes(base64.b64decode(os.environ['KEYSTORE'], validate=True))
+          key.chmod(0o600)
+          PY
+      - name: Build signed APK
+        working-directory: frontend
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/openscore-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_VERSION_NAME: ${{ github.ref_name }}
+          VITE_API_URL: ${{ vars.PUBLIC_API_URL }}
+        run: npm run android:release
+      - name: Verify signature
+        run: '"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose artifacts/openscore-ai-release.apk'
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          sha256sum artifacts/openscore-ai-release.apk > artifacts/SHA256SUMS.txt
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" artifacts/openscore-ai-release.apk artifacts/SHA256SUMS.txt --clobber
+          else
+            gh release create "$RELEASE_TAG" artifacts/openscore-ai-release.apk artifacts/SHA256SUMS.txt --verify-tag --title "OpenScore AI $RELEASE_TAG" --generate-notes
+          fi
+      - name: Remove temporary keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/openscore-release.jks"

@@ -1,0 +1,47 @@
+services:
+  backend:
+    build:
+      context: .
+      target: backend
+    environment:
+      APP_NAME: ${APP_NAME:-OpenScore AI}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-50}
+      MAX_DURATION: ${MAX_DURATION:-480}
+      MAX_JOBS: ${MAX_JOBS:-12}
+      MAX_CONCURRENT_JOBS: ${MAX_CONCURRENT_JOBS:-1}
+      JOB_TIMEOUT: ${JOB_TIMEOUT:-1800}
+      ENABLE_ONLINE_SOURCES: ${ENABLE_ONLINE_SOURCES:-1}
+      ENABLE_SEPARATION: ${ENABLE_SEPARATION:-1}
+      JOB_TTL: ${JOB_TTL:-3600}
+    mem_limit: 5g
+    cpus: 2
+    pids_limit: 128
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+      - /data:size=1536m,uid=1000,gid=1000,mode=0700
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+  frontend:
+    build:
+      context: .
+      target: frontend
+      args:
+        VITE_APP_NAME: ${APP_NAME:-OpenScore AI}
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    mem_limit: 256m
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
