@@ -303,3 +303,16 @@ def fingering(score: Score):
         w for w in score.warnings if "fingering" not in w and "fret-span" not in w
     ] + warnings
     return score
+
+
+# Serve the built website from the same server when it is available, so one
+# command gives a complete app at http://127.0.0.1:8000 (see start scripts).
+SITE = Path(
+    os.environ.get(
+        "FRONTEND_DIST", Path(__file__).resolve().parents[2] / "frontend" / "dist"
+    )
+)
+if (SITE / "index.html").is_file():
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/", StaticFiles(directory=SITE, html=True), name="site")

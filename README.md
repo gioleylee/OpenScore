@@ -12,6 +12,12 @@ Get sheet music and tabs for the instrument you play, from almost any song. Uplo
 
 **Copyright:** only transcribe audio you have the right to use. Downloading from YouTube may be restricted by YouTube's Terms of Service in your country. Use the feature for personal practice, and set `ENABLE_ONLINE_SOURCES=0` on any public deployment where you can't take on that responsibility.
 
+## Use it on your PC (one click)
+
+**Windows:** double-click **`Start OpenScore.bat`** in this folder. **macOS/Linux:** run `./start-openscore.sh`. The website opens at **http://127.0.0.1:8000**. Keep the window open while you use it; close it (or press Ctrl+C) to stop.
+
+The first run sets everything up automatically. It needs Python 3.11 (or [uv](https://docs.astral.sh/uv/)) and [Node.js LTS](https://nodejs.org), downloads several GB, and takes 5–15 minutes. Later runs start in seconds. Node.js is also what lets YouTube links and song search work. After pulling new code, delete `frontend/dist` so the next start rebuilds the website.
+
 **Website + Android:** one shared React/TypeScript frontend now builds an installable PWA and a Capacitor Android APK. Saved scores support offline viewing, editing, fingering, synth practice and exports. New transcriptions, YouTube links and song search need the Python server (point the app at it under **Connection settings**); offline Android AI inference is not implemented. See [Android build, installation, signing and releases](docs/ANDROID.md).
 
 ```sh
