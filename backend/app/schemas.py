@@ -3,11 +3,13 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 MAX_NOTES = 12000
+# Instruments whose notes are mapped to strings (tab/fingering).
+STRINGED = ("guitar", "bass", "ukulele", "violin")
 
 
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
-    mode: Literal["melody", "piano", "guitar", "bass", "ukulele"] = "melody"
+    mode: Literal["melody", "piano", "guitar", "bass", "ukulele", "violin"] = "melody"
     engine: Literal["pyin", "basic_pitch"] = "pyin"
     instrument: str = Field(default="Guitar", max_length=60)
     start: float = Field(default=0, ge=0, le=3600)
@@ -42,6 +44,8 @@ class Settings(BaseModel):
             raise ValueError("Tuning must be ordered low to high")
         if self.mode == "bass" and len(self.tuning) != 4:
             raise ValueError("Bass requires four strings")
+        if self.mode == "violin" and len(self.tuning) != 4:
+            raise ValueError("Violin requires four strings")
         if self.mode == "ukulele" and len(self.tuning) != 4:
             raise ValueError("Ukulele requires four strings")
         if self.mode == "guitar" and len(self.tuning) != 6:

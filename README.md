@@ -4,7 +4,7 @@ Get sheet music and tabs for the instrument you play, from almost any song. Uplo
 
 **Inputs:** an audio file (MP3/WAV/FLAC/M4A/OGG), a YouTube link, or a song name (search, then pick the right video).
 
-**Outputs:** standard notation for melody instruments (voice, violin, flute, sax, trumpet, ...), a two-staff piano score, or guitar, bass and ukulele tabs with playable fingerings.
+**Outputs:** standard notation for melody instruments (voice, flute, sax, trumpet, ...), violin sheet music with first-position finger numbers (plus optional violin tab), a two-staff piano score, or guitar, bass and ukulele tabs with playable fingerings. The key signature is estimated automatically.
 
 **How it works:** [yt-dlp](https://github.com/yt-dlp/yt-dlp) fetches audio from YouTube. [Demucs](https://github.com/facebookresearch/demucs) (`htdemucs_6s`) optionally isolates vocals, guitar, bass, piano or other instruments from the mix. [Basic Pitch](https://github.com/spotify/basic-pitch) (polyphonic) or pYIN (single line) detects the notes. A beam-search fingering optimizer then writes playable tabs.
 

@@ -17,7 +17,7 @@ from . import separation, sources
 from .audio import EXTENSIONS
 from .jobs import TTL, Manager
 from .notation import midi_bytes, musicxml
-from .schemas import Score, Settings
+from .schemas import STRINGED, Score, Settings
 from .tablature import ascii_tab, optimize
 
 manager = Manager()
@@ -286,7 +286,7 @@ def render(format: str, score: Score, view: str = "staff"):
                 musicxml(score, view),
                 media_type="application/vnd.recordare.musicxml+xml",
             )
-        if format == "txt" and score.settings.mode in ("guitar", "bass", "ukulele"):
+        if format == "txt" and score.settings.mode in STRINGED:
             return Response(ascii_tab(score), media_type="text/plain")
     except Exception as exc:
         logging.exception("Export failed")

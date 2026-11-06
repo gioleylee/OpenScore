@@ -4,7 +4,11 @@
 
 - Three audio sources: file upload, single-video YouTube links (strictly limited to YouTube hosts, so the server can't be used to fetch arbitrary URLs), and song-name search that returns candidates for you to pick from. Downloads run in the cancellable worker with duration and size limits.
 - Optional Demucs `htdemucs_6s` instrument isolation (vocals, guitar, bass, piano, other) before note detection, for full-band songs.
-- Instruments: melody (voice, violin, flute, sax, trumpet, clarinet, cello, ...), piano, guitar, bass and ukulele (re-entrant GCEA tabs).
+- Instruments: melody (voice, flute, sax, trumpet, clarinet, cello, ...), piano, guitar, bass, ukulele (re-entrant GCEA tabs) and violin.
+- Violin: G-D-A-E strings, fingerings that stay in first position unless a shift is needed, finger numbers (0 = open) on the staff, 4-line violin tab. Solo recordings use pYIN; violin isolated from a song uses Basic Pitch reduced to the top line.
+- Expressive playing: notes stay whole through vibrato and slides, repeated notes split at bow changes (level dips), and recordings not tuned to A = 440 Hz are corrected for both engines.
+- Key signature estimated from the notes (Krumhansl-Kessler profiles); flat keys are spelled with flats.
+- Song tempo and beat phase from a comb filter over the whole mix; bar lines placed on the strongest beat.
 - Actual MP3/WAV/FLAC/M4A/OGG decode, drag/drop, metadata, browser audio preview and sampled waveform.
 - Configurable whole-file byte/duration limits, segment selection, mono/resample/peak limiting, safe temporary directories.
 - Lightweight monophonic pYIN and optional Basic Pitch polyphony with bundled local weights.
@@ -25,10 +29,11 @@
 ## Limitations and future work
 
 - One instrument part per transcription. Demucs separates broad stems; it cannot split two guitars or name a specific synth. No hidden guessed tracks, fake confidences or fake completion.
+- Violin isolation uses Demucs' generic 'other' stem (no dedicated violin model), so synth pads or strings in the backing can leak in. Double stops are reduced to the top note. Fingerings are first-position suggestions, not bowing or a teacher's edition.
 - Song search uses YouTube results; picking a cover or live version gives that version's notes. The app does not look up published sheet music or tabs.
 - yt-dlp must be kept current. YouTube may block datacenter IPs, so a home server or your own PC works more reliably than cloud hosts.
 - Isolated melody tracking is not main-lead extraction from a full mix; Basic Pitch is not a dedicated piano/guitar model.
-- No MuScriptor weights, noise suppression, trained fingering classifier, pitch-bend/slide/vibrato inference, key inference or variable-tempo map.
+- No MuScriptor weights, noise suppression, trained fingering classifier, pitch-bend/slide/vibrato inference, or variable-tempo map.
 - Quantization assumes segment start is beat zero. Silence/pickups may shift the notated beat; correct onset/tempo manually.
 - Same-pitch rearticulations without pitch change or a sufficient unvoiced gap can merge in pYIN.
 - Piano part split is a heuristic; no hand detection, pedal analysis or full grand-staff engraving.

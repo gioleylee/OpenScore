@@ -73,7 +73,11 @@ export function localFingering(score: Score): Score {
             state.cost +
             Math.abs(position - state.position) * 1.5 +
             span ** 2 * 0.5 +
-            combo.reduce((a, c) => a + c.fret * 0.03, 0),
+            combo.reduce((a, c) => a + c.fret * 0.03, 0) +
+            // Violin: stay in first position unless the note needs a shift.
+            (s.mode === "violin"
+              ? combo.reduce((a, c) => a + Math.max(0, c.fret - 7) * 2, 0)
+              : 0),
           position,
           occupied,
           path: [...state.path, combo],

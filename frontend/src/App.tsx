@@ -61,6 +61,7 @@ const ScoreView = lazy(() =>
 import { Playback } from "./Playback";
 import { Editor } from "./Editor";
 
+const TAB_FIRST: Mode[] = ["guitar", "bass", "ukulele"];
 const NAME = import.meta.env.VITE_APP_NAME || "OpenScore AI";
 const modes: { id: Mode; name: string; description: string }[] = [
   { id: "melody", name: "Melody", description: "One clear musical line" },
@@ -68,10 +69,11 @@ const modes: { id: Mode; name: string; description: string }[] = [
   { id: "guitar", name: "Guitar", description: "Standard notation & tabs" },
   { id: "bass", name: "Bass", description: "Low-end lines & 4-string tabs" },
   { id: "ukulele", name: "Ukulele", description: "GCEA notation & tabs" },
+  { id: "violin", name: "Violin", description: "Fingerings & violin tab" },
 ];
 const presets: Record<
   Mode,
-  { instrument: string; tuning: number[]; stem: Stem }
+  { instrument: string; tuning: number[]; stem: Stem; maxFret?: number }
 > = {
   melody: {
     instrument: "Voice",
@@ -90,10 +92,16 @@ const presets: Record<
   },
   bass: { instrument: "Bass", tuning: [28, 33, 38, 43], stem: "bass" },
   ukulele: { instrument: "Ukulele", tuning: [67, 60, 64, 69], stem: "guitar" },
+  // G3 D4 A4 E5. Up to 12 semitones per string covers 1st-5th position.
+  violin: {
+    instrument: "Violin",
+    tuning: [55, 62, 69, 76],
+    stem: "other",
+    maxFret: 12,
+  },
 };
 const melodyInstruments = [
   "Voice",
-  "Violin",
   "Flute",
   "Saxophone",
   "Trumpet",
@@ -254,8 +262,8 @@ export default function App() {
   }, []);
   function openSaved(item: SavedTranscription) {
     setScore(item.score);
-    // Players of fretted instruments read tab first.
-    setView(FRETTED.includes(item.score.settings.mode) ? "tab" : "staff");
+    // Guitar, bass and ukulele players read tab first; violinists read the staff.
+    setView(TAB_FIRST.includes(item.score.settings.mode) ? "tab" : "staff");
     setResult({ score: item.score, audio: item.audio });
     setJob(null);
     setSavedId(item.id === "draft" ? null : item.id);
@@ -303,32 +311,42 @@ export default function App() {
   const onBeat = useCallback((b: number) => setBeat(b), []);
   const config = (patch: Partial<Settings>) =>
     setSettings((s) => ({ ...s, ...patch }));
+  /** Basic Pitch catches fast and repeated notes far better on real
+   * recordings (and is required for chords). pYIN is the most accurate for a
+   * clean solo melody or violin, but struggles once other instruments bleed in. */
+  function engineFor(id: Mode, separate: Stem): Settings["engine"] {
+    if (!health?.basic_pitch) return "pyin";
+    if (id === "melody" || id === "violin")
+      return separate === "none" ? "pyin" : "basic_pitch";
+    return "basic_pitch";
+  }
   function mode(id: Mode) {
     const preset = presets[id];
+    const separate = settings.separate === "none" ? "none" : preset.stem;
     config({
       mode: id,
       instrument: preset.instrument,
-      // Basic Pitch catches fast and repeated notes far better on real recordings
-      // (and is required for chords); pYIN suits a clean solo melody.
-      engine:
-        id === "piano" || (id !== "melody" && health?.basic_pitch)
-          ? "basic_pitch"
-          : "pyin",
+      engine: engineFor(id, separate),
       tuning: preset.tuning,
-      separate: settings.separate === "none" ? "none" : preset.stem,
+      capo: 0,
+      min_fret: 0,
+      max_fret: preset.maxFret ?? 20,
+      separate,
     });
   }
   function chooseSource(next: "file" | "link" | "search") {
     setSource(next);
     setError("");
+    // YouTube songs are full mixes; isolate the chosen instrument by default.
+    const separate =
+      next !== "file" && health?.separation
+        ? presets[settings.mode].stem
+        : "none";
     config({
       start: 0,
       end: null,
-      // YouTube songs are full mixes; isolate the chosen instrument by default.
-      separate:
-        next !== "file" && health?.separation
-          ? presets[settings.mode].stem
-          : "none",
+      separate,
+      engine: engineFor(settings.mode, separate),
     });
   }
   async function runSearch() {
@@ -400,8 +418,8 @@ export default function App() {
           if (stopped) return;
           setResult(r);
           setScore(r.score);
-          // Players of fretted instruments read tab first.
-          setView(FRETTED.includes(r.score.settings.mode) ? "tab" : "staff");
+          // Guitar, bass and ukulele players read tab first; violinists read the staff.
+          setView(TAB_FIRST.includes(r.score.settings.mode) ? "tab" : "staff");
           setPast([]);
           setFuture([]);
           setState("done");
@@ -965,9 +983,13 @@ export default function App() {
                   Isolate instrument from a full mix
                   <select
                     value={settings.separate}
-                    onChange={(e) =>
-                      config({ separate: e.target.value as Stem })
-                    }
+                    onChange={(e) => {
+                      const separate = e.target.value as Stem;
+                      config({
+                        separate,
+                        engine: engineFor(settings.mode, separate),
+                      });
+                    }}
                   >
                     {stems.map((s) => (
                       <option
@@ -1089,7 +1111,7 @@ export default function App() {
                         </small>
                       </label>
                       <div className="advanced-grid">
-                        <label>
+                        <label hidden={settings.mode === "violin"}>
                           Capo
                           <input
                             type="number"

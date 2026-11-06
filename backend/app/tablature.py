@@ -57,6 +57,10 @@ def optimize(notes: list[Note], settings: Settings, beam_width=48):
                     + stretch**2 * 0.5
                     + sum(f for _, f in combo) * 0.03
                 )
+                if settings.mode == "violin":
+                    # Stay in first position (open to 4th finger) unless the
+                    # note requires shifting, as violin teachers write it.
+                    local += sum(max(0, f - 7) for _, f in combo) * 2.0
                 new_live = {
                     **live,
                     **{s: (onset + n.duration, f) for n, (s, f) in zip(group, combo)},

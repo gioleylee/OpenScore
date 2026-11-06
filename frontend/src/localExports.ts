@@ -1,3 +1,4 @@
+import { FRETTED, violinFinger } from "./types";
 import type { Note, Score } from "./types";
 const DIV = 960;
 const escapeXml = (v: unknown) =>
@@ -13,17 +14,19 @@ const escapeXml = (v: unknown) =>
       })[c]!,
   );
 const tick = (beat: number) => Math.round(beat * DIV);
-const spelling = (pitch: number) => {
+const spelling = (pitch: number, flats = false) => {
   const index = pitch % 12;
   return {
-    step: ["C", "C", "D", "D", "E", "F", "F", "G", "G", "A", "A", "B"][index],
-    alter: [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0][index],
+    step: (flats
+      ? ["C", "D", "D", "E", "E", "F", "G", "G", "A", "A", "B", "B"]
+      : ["C", "C", "D", "D", "E", "F", "F", "G", "G", "A", "A", "B"])[index],
+    alter: [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0][index] * (flats ? -1 : 1),
     octave: Math.floor(pitch / 12) - 1,
   };
 };
-function pitchXml(pitch: number) {
-  const p = spelling(pitch);
-  return `<step>${p.step}</step>${p.alter ? "<alter>1</alter>" : ""}<octave>${p.octave}</octave>`;
+function pitchXml(pitch: number, flats = false) {
+  const p = spelling(pitch, flats);
+  return `<step>${p.step}</step>${p.alter ? `<alter>${p.alter}</alter>` : ""}<octave>${p.octave}</octave>`;
 }
 const lengths: [number, string][] = [
   [3840, "whole"],
@@ -52,8 +55,9 @@ function eventXml(
   start: number,
   end: number,
   voice: number,
-  tab: boolean,
+  options: { tab: boolean; fingers: boolean; flats: boolean },
 ) {
+  const { tab, fingers, flats } = options;
   const pieces = fragments(end - start);
   let position = start;
   return pieces
@@ -63,22 +67,29 @@ function eventXml(
       const ties = n
         ? `${stopped ? '<tie type="stop"/>' : ""}${continued ? '<tie type="start"/>' : ""}`
         : "";
+      const finger =
+        fingers && n && !stopped && n.fret !== null
+          ? `<technical><fingering>${violinFinger(n.fret)}</fingering></technical>`
+          : "";
       const notation =
-        n && (stopped || continued || tab)
-          ? `<notations>${stopped ? '<tied type="stop"/>' : ""}${continued ? '<tied type="start"/>' : ""}${tab && n.string !== null ? `<technical><string>${n.string}</string><fret>${n.fret}</fret></technical>` : ""}</notations>`
+        n && (stopped || continued || tab || finger)
+          ? `<notations>${stopped ? '<tied type="stop"/>' : ""}${continued ? '<tied type="start"/>' : ""}${tab && n.string !== null ? `<technical><string>${n.string}</string><fret>${n.fret}</fret></technical>` : ""}${finger}</notations>`
           : "";
       position += piece.ticks;
-      return `<note>${n ? `<pitch>${pitchXml(n.pitch)}</pitch>` : "<rest/>"}<duration>${piece.ticks}</duration>${ties}<voice>${voice}</voice>${piece.type ? `<type>${piece.type}</type>` : ""}${notation}${tab && n && n.string === null ? "<lyric><text>?</text></lyric>" : ""}</note>`;
+      return `<note>${n ? `<pitch>${pitchXml(n.pitch, flats)}</pitch>` : "<rest/>"}<duration>${piece.ticks}</duration>${ties}<voice>${voice}</voice>${piece.type ? `<type>${piece.type}</type>` : ""}${notation}${tab && n && n.string === null ? "<lyric><text>?</text></lyric>" : ""}</note>`;
     })
     .join("");
 }
 /** Local score engraving. Independent voices preserve polyphonic durations;
  * ties split notes at measures. No audio inference occurs in this module. */
 export function localMusicXml(score: Score, view = "staff") {
-  const tab =
-      view === "tab" &&
-      ["guitar", "bass", "ukulele"].includes(score.settings.mode),
-    s = score.settings;
+  const tab = view === "tab" && FRETTED.includes(score.settings.mode),
+    s = score.settings,
+    options = {
+      tab,
+      fingers: !tab && s.mode === "violin",
+      flats: score.key < 0,
+    };
   const partitions =
     s.mode === "piano"
       ? [
@@ -136,11 +147,11 @@ export function localMusicXml(score: Score, view = "staff") {
               const a = Math.max(from, tick(n.onset)),
                 b = Math.min(to, tick(n.onset + n.duration));
               if (a >= b) continue;
-              if (a > cursor) xml += eventXml(null, cursor, a, vi + 1, tab);
-              xml += eventXml(n, a, b, vi + 1, tab);
+              if (a > cursor) xml += eventXml(null, cursor, a, vi + 1, options);
+              xml += eventXml(n, a, b, vi + 1, options);
               cursor = b;
             }
-            if (cursor < to) xml += eventXml(null, cursor, to, vi + 1, tab);
+            if (cursor < to) xml += eventXml(null, cursor, to, vi + 1, options);
             return xml;
           })
           .join("");
@@ -184,7 +195,9 @@ export function localMidi(score: Score): Uint8Array {
       ? 24
       : s.mode === "bass"
         ? 33
-        : 0,
+        : s.mode === "violin"
+          ? 40
+          : 0,
   ];
   const events = score.notes
     .flatMap((n) => [

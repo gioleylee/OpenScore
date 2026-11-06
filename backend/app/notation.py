@@ -4,7 +4,24 @@ import xml.etree.ElementTree as ET
 import mido
 from music21 import clef, instrument, key, meter, note, stream, tempo
 
-from .schemas import Score
+from .schemas import STRINGED, Score
+
+
+def violin_finger(semitones: int) -> int:
+    """Suggested finger (0 = open) for a note this many semitones above the string.
+
+    Picks the lowest common hand position whose fingers reach the note;
+    fingers 1-4 cover about five semitones in each position.
+    """
+    if semitones <= 0:
+        return 0
+    if semitones == 1:
+        return 1
+    # First finger of 1st, 3rd, 5th, 7th, 8th and 10th position (as taught).
+    for first in (2, 5, 9, 12, 14, 17):
+        if first <= semitones <= first + 5:
+            return (1, 2, 2, 3, 3, 4)[semitones - first]
+    return 4
 
 
 def midi_bytes(score: Score):
@@ -19,7 +36,7 @@ def midi_bytes(score: Score):
             denominator=score.settings.denominator,
         )
     )
-    program = {"piano": 0, "guitar": 24, "bass": 33, "ukulele": 24}.get(
+    program = {"piano": 0, "guitar": 24, "bass": 33, "ukulele": 24, "violin": 40}.get(
         score.settings.mode, 0
     )
     track.append(mido.Message("program_change", program=program))
@@ -54,7 +71,7 @@ def musicxml(score: Score, view="staff"):
     from music21 import metadata
 
     root.metadata = metadata.Metadata(title=score.title)
-    tab = view == "tab" and score.settings.mode in ("guitar", "bass", "ukulele")
+    tab = view == "tab" and score.settings.mode in STRINGED
     partitions = [score.notes]
     if score.settings.mode == "piano":
         partitions = [
@@ -98,6 +115,14 @@ def musicxml(score: Score, view="staff"):
                 voices.append(stream.Voice(id=str(vi + 1)))
                 ends.append(0)
             value = note.Note(n.pitch, quarterLength=n.duration)
+            if score.key < 0 and value.pitch.accidental is not None:
+                value.pitch = value.pitch.getEnharmonic()
+            if not tab and score.settings.mode == "violin" and n.fret is not None:
+                from music21 import articulations
+
+                value.articulations.append(
+                    articulations.Fingering(violin_finger(n.fret))
+                )
             value.volume.velocity = n.velocity
             if tab and n.string is not None:
                 from music21 import articulations

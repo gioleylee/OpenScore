@@ -23,9 +23,9 @@ def run(directory):
 
     try:
         from .audio import decode
-        from .schemas import Score, Settings
+        from .schemas import STRINGED, Score, Settings
         from .tablature import optimize
-        from .transcription import transcribe
+        from .transcription import key_signature, transcribe
 
         settings = Settings.model_validate_json(
             (directory / "settings.json").read_text()
@@ -66,7 +66,7 @@ def run(directory):
         notes, tempo, warnings = transcribe(
             detection_audio, y, sr, settings, stage, rhythm=mix
         )
-        if settings.mode in ("guitar", "bass", "ukulele"):
+        if settings.mode in STRINGED:
             stage("Optimizing playable tablature")
             warnings.extend(optimize(notes, settings))
         if settings.separate != "none":
@@ -80,6 +80,7 @@ def run(directory):
         score = Score(
             title=(directory / "title.txt").read_text(),
             tempo=tempo,
+            key=key_signature(notes, warnings),
             settings=settings,
             notes=notes,
             warnings=warnings,

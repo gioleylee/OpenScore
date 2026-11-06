@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Undo2, Redo2 } from "lucide-react";
 import type { Score, Note } from "./types";
-import { pitchName } from "./types";
+import { FRETTED, pitchName, violinFinger } from "./types";
 
 export function Editor({
   score,
@@ -181,7 +181,7 @@ export function Editor({
               }
             />
           </label>
-          {["guitar", "bass", "ukulele"].includes(score.settings.mode) && (
+          {FRETTED.includes(score.settings.mode) && (
             <label>
               String / fret
               <select
@@ -210,7 +210,9 @@ export function Editor({
                   )
                   .map((c) => (
                     <option key={c.string} value={`${c.string},${c.fret}`}>
-                      String {c.string}, fret {c.fret}
+                      {score.settings.mode === "violin"
+                        ? `${pitchName(score.settings.tuning[score.settings.tuning.length - c.string]).replace(/-?\d+$/, "")} string, finger ${violinFinger(c.fret)} (+${c.fret})`
+                        : `String ${c.string}, fret ${c.fret}`}
                     </option>
                   ))}
               </select>

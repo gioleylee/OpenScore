@@ -28,7 +28,7 @@ export function validateSaved(value: unknown): SavedTranscription {
     !Array.isArray(s.notes) ||
     s.notes.length > 12000 ||
     !s.settings ||
-    !["melody", "guitar", "bass", "piano", "ukulele"].includes(
+    !["melody", "guitar", "bass", "piano", "ukulele", "violin"].includes(
       s.settings.mode,
     ) ||
     ![4, 8].includes(s.settings.denominator) ||
@@ -66,6 +66,7 @@ export function validateSaved(value: unknown): SavedTranscription {
     (config.mode === "guitar" && config.tuning.length !== 6) ||
     (config.mode === "bass" && config.tuning.length !== 4) ||
     (config.mode === "ukulele" && config.tuning.length !== 4) ||
+    (config.mode === "violin" && config.tuning.length !== 4) ||
     !Array.isArray(s.warnings) ||
     s.warnings.length > 100 ||
     s.warnings.some((w) => typeof w !== "string" || w.length > 2000) ||

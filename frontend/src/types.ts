@@ -1,6 +1,23 @@
-export type Mode = "melody" | "piano" | "guitar" | "bass" | "ukulele";
+export type Mode =
+  | "melody"
+  | "piano"
+  | "guitar"
+  | "bass"
+  | "ukulele"
+  | "violin";
 export type Stem = "none" | "vocals" | "bass" | "guitar" | "piano" | "other";
-export const FRETTED: Mode[] = ["guitar", "bass", "ukulele"];
+/** Instruments whose notes are mapped to strings (tab and fingering). */
+export const FRETTED: Mode[] = ["guitar", "bass", "ukulele", "violin"];
+/** Suggested violin finger (0 = open string) for semitones above the string,
+ * using 1st, 3rd, 5th, 7th, 8th and 10th position as commonly taught. */
+export function violinFinger(semitones: number) {
+  if (semitones <= 0) return 0;
+  if (semitones === 1) return 1;
+  for (const first of [2, 5, 9, 12, 14, 17])
+    if (semitones >= first && semitones <= first + 5)
+      return [1, 2, 2, 3, 3, 4][semitones - first];
+  return 4;
+}
 export interface Settings {
   mode: Mode;
   engine: "pyin" | "basic_pitch";
