@@ -25,6 +25,10 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: android-actions/setup-android@v3
+        with:
+          # The action's default also installs the legacy 'tools' package, which
+          # the SDK repository no longer offers, so the step failed every run.
+          packages: 'platform-tools'
       - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
       - run: npm ci --ignore-scripts
         working-directory: frontend
@@ -56,6 +60,10 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: android-actions/setup-android@v3
+        with:
+          # The action's default also installs the legacy 'tools' package, which
+          # the SDK repository no longer offers, so the step failed every run.
+          packages: 'platform-tools'
       - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
       - run: npm ci --ignore-scripts
         working-directory: frontend
