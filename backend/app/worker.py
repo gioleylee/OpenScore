@@ -18,7 +18,7 @@ def run(directory):
 
     def stage(message):
         tmp = directory / "stage.tmp"
-        tmp.write_text(message)
+        tmp.write_text(message, encoding="utf-8")
         tmp.replace(directory / "stage.txt")
 
     try:
@@ -28,7 +28,7 @@ def run(directory):
         from .transcription import key_signature, transcribe
 
         settings = Settings.model_validate_json(
-            (directory / "settings.json").read_text()
+            (directory / "settings.json").read_text(encoding="utf-8")
         )
         max_duration = float(os.environ.get("MAX_DURATION", "480"))
         source = directory / "source.json"
@@ -37,12 +37,12 @@ def run(directory):
 
             stage("Downloading audio from YouTube")
             title = download(
-                json.loads(source.read_text())["url"],
+                json.loads(source.read_text(encoding="utf-8"))["url"],
                 directory,
                 max_duration,
                 int(os.environ.get("MAX_UPLOAD_MB", "50")) * 1024 * 1024,
             )
-            (directory / "title.txt").write_text(title)
+            (directory / "title.txt").write_text(title, encoding="utf-8")
         stage("Decoding and validating audio")
         y, sr, metadata = decode(
             directory / "upload",
@@ -78,7 +78,7 @@ def run(directory):
                 "Piano staves are split at middle C for readability, not inferred hand assignments."
             )
         score = Score(
-            title=(directory / "title.txt").read_text(),
+            title=(directory / "title.txt").read_text(encoding="utf-8"),
             tempo=tempo,
             key=key_signature(notes, warnings),
             settings=settings,
@@ -86,7 +86,8 @@ def run(directory):
             warnings=warnings,
         )
         (directory / "result.json").write_text(
-            json.dumps({"score": score.model_dump(), "audio": metadata})
+            json.dumps({"score": score.model_dump(), "audio": metadata}),
+            encoding="utf-8",
         )
         # The original compressed upload is no longer needed. Segment WAV expires with job.
         (directory / "upload").unlink(missing_ok=True)
@@ -101,7 +102,7 @@ def run(directory):
             if isinstance(exc, ValueError)
             else "Processing failed. Check server logs and model installation."
         )
-        (directory / "error.txt").write_text(message[:1000])
+        (directory / "error.txt").write_text(message[:1000], encoding="utf-8")
         return 1
 
 

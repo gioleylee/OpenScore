@@ -170,11 +170,12 @@ async def upload(
                 out.write(chunk)
         if not count:
             raise HTTPException(422, "Audio file is empty")
-        (job.directory / "settings.json").write_text(config.model_dump_json())
+        (job.directory / "settings.json").write_text(config.model_dump_json(), encoding="utf-8")
         # Display title only. User filenames never become filesystem paths.
         title = Path((file.filename or "Untitled").replace("\\", "/")).stem[:100]
         (job.directory / "title.txt").write_text(
-            "".join(c for c in title if c.isprintable()) or "Untitled"
+            "".join(c for c in title if c.isprintable()) or "Untitled",
+            encoding="utf-8",
         )
         manager.submit(job)
     except BaseException:
@@ -227,9 +228,9 @@ async def online(request: Request, body: OnlineJob):
         job = manager.create(request.client.host if request.client else "unknown")
     except ValueError as exc:
         raise HTTPException(429, str(exc)) from exc
-    (job.directory / "source.json").write_text(json.dumps({"url": url}))
-    (job.directory / "settings.json").write_text(body.settings.model_dump_json())
-    (job.directory / "title.txt").write_text("YouTube audio")
+    (job.directory / "source.json").write_text(json.dumps({"url": url}), encoding="utf-8")
+    (job.directory / "settings.json").write_text(body.settings.model_dump_json(), encoding="utf-8")
+    (job.directory / "title.txt").write_text("YouTube audio", encoding="utf-8")
     manager.submit(job)
     return {"id": job.id, "state": job.state}
 
@@ -241,7 +242,7 @@ def status(identifier: str):
     return {
         "id": job.id,
         "state": job.state,
-        "stage": stage_file.read_text()
+        "stage": stage_file.read_text(encoding="utf-8")
         if stage_file.exists()
         else job.state.capitalize(),
         "error": job.error,
@@ -254,7 +255,7 @@ def result(identifier: str):
     job = get_job(identifier)
     if job.state != "done":
         raise HTTPException(409, "Job has no completed result")
-    return json.loads((job.directory / "result.json").read_text())
+    return json.loads((job.directory / "result.json").read_text(encoding="utf-8"))
 
 
 @app.get("/api/jobs/{identifier}/audio")

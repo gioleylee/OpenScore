@@ -82,7 +82,7 @@ class Manager:
                         )
                 error_file = job.directory / "error.txt"
                 if error_file.exists():
-                    job.error = error_file.read_text()
+                    job.error = error_file.read_text(encoding="utf-8")
                 job.state = (
                     "failed" if job.error or job.process.returncode != 0 else "done"
                 )

@@ -70,5 +70,5 @@ def decode(source: Path, output: Path, max_duration: float, start=0.0, end=None)
         "segment_start": start,
         "waveform": peaks,
     }
-    output.with_suffix(".json").write_text(json.dumps(metadata))
+    output.with_suffix(".json").write_text(json.dumps(metadata), encoding="utf-8")
     return y, sr, metadata

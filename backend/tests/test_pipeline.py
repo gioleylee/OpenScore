@@ -201,6 +201,31 @@ def test_upload_job_export_and_cleanup():
         assert client.get(f"/api/jobs/{identifier}").status_code == 404
 
 
+def test_non_latin_title_survives_the_pipeline():
+    # Job files must be UTF-8 on every platform. With the platform default
+    # (cp1252 on Windows) a title like this could not even be saved.
+    title = "夜に駆ける – étude \U0001f3b5"
+    y, sr = fixture([[69]], seconds=0.6)
+    out = io.BytesIO()
+    sf.write(out, y, sr, format="WAV")
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/jobs",
+            files={"file": (f"{title}.wav", out.getvalue(), "audio/wav")},
+            data={"settings": Settings(tempo=120).model_dump_json()},
+        )
+        assert response.status_code == 202, response.text
+        identifier = response.json()["id"]
+        for _ in range(180):
+            status = client.get(f"/api/jobs/{identifier}").json()
+            if status["state"] in ("done", "failed"):
+                break
+            time.sleep(0.5)
+        assert status["state"] == "done", status
+        result = client.get(f"/api/jobs/{identifier}/result").json()
+        assert result["score"]["title"] == title
+
+
 def test_bad_upload_and_cancel():
     with TestClient(app) as client:
         settings = {"settings": Settings().model_dump_json()}
